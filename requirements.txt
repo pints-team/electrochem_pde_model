@@ -1,0 +1,2 @@
+git+git://github.com/pints-team/pints@master#egg=pints
+pybamm
