@@ -31,7 +31,7 @@ def inference(model, values, times):
     mcmc = pints.MCMCController(log_posterior, 3, xs, method=pints.HaarioACMC)
 
     # Add stopping criterion
-    mcmc.set_max_iterations(4000)
+    mcmc.set_max_iterations(10000)
 
     # Run!
     chains = mcmc.run()
