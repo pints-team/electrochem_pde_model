@@ -22,9 +22,7 @@ class SingleReactionSolution(pints.ForwardModel):
                 "Scan Rate [V s-1]": 0.08941,
             })
 
-        # Create state variables for model
-        theta = pybamm.Variable("ratio_A", domain="solution")
-        i = pybamm.Variable("Current")
+
 
         # Create dimensional fixed parameters
         c_inf = pybamm.Parameter("Far-field concentration of A [mol cm-3]")
@@ -72,8 +70,28 @@ class SingleReactionSolution(pints.ForwardModel):
             (pybamm.t > t_reverse) * Edc_backwards + \
             deltaE * pybamm.sin(omega * pybamm.t)
 
+        # create PyBaMM model object
+        model = pybamm.BaseModel()
+
+        # Create state variables for model
+        theta = pybamm.Variable("ratio_A", domain="solution")
+        i = pybamm.Variable("Current")
+
         # Effective potential
         Eeff = Eapp - i * Ru
+
+        # Faradaic current
+        i_f = pybamm.BoundaryGradient(theta, "left")
+
+        # ODE equations
+        model.rhs = {
+            theta: pybamm.div(pybamm.grad(theta)),
+            i: 1/(Cdl * Ru) * (i_f + Cdl * Eapp.diff(pybamm.t) - i),
+        }
+
+        # algebraic equations (none)
+        model.algebraic = {
+        }
 
         # Butler-volmer boundary condition at electrode
         theta_at_electrode = pybamm.BoundaryValue(theta, "left")
@@ -82,19 +100,6 @@ class SingleReactionSolution(pints.ForwardModel):
             - (1 - theta_at_electrode) * pybamm.exp((1-alpha) * (Eeff - E0))
         )
 
-        # Faradaic current
-        i_f = pybamm.BoundaryGradient(theta, "left")
-
-        # ODE equations
-        model = pybamm.BaseModel()
-        model.rhs = {
-            theta: pybamm.div(pybamm.grad(theta)),
-            i: 1/(Cdl * Ru) * (i_f + Cdl * Eapp.diff(pybamm.t) - i),
-        }
-        # algebraic equations (none)
-        model.algebraic = {
-        }
-
         # Boundary and initial conditions
         model.boundary_conditions = {
             theta: {
@@ -102,16 +107,10 @@ class SingleReactionSolution(pints.ForwardModel):
                 "left": (butler_volmer, "Neumann"),
             }
         }
+
         model.initial_conditions = {
             theta: pybamm.Scalar(1),
             i: pybamm.Scalar(0),
-        }
-
-        # model variables
-        model.variables = {
-            "Current [non-dim]": i,
-            "Current [A]": i * I_0,
-            "Theta at electrode [non-dim]": theta_at_electrode
         }
 
         # set spatial variables and solution domain geometry
@@ -133,10 +132,14 @@ class SingleReactionSolution(pints.ForwardModel):
             "solution": pybamm.FiniteVolume()
         }
 
+        # model variables
+        model.variables = {
+            "Current [non-dim]": i,
+        }
+
         #--------------------------------
 
         # Set model parameters
-        # pybamm.set_logging_level("INFO")
         param.process_model(model)
         geometry = model.default_geometry
         param.process_geometry(geometry)
@@ -152,6 +155,9 @@ class SingleReactionSolution(pints.ForwardModel):
         # Store discretised model and solver
         self._model = model
         self._solver = solver
+        self._omega_d = param.process_symbol(omega_d).evaluate()
+        self._I_0 = param.process_symbol(I_0).evaluate()
+        self._T_0 = param.process_symbol(T_0).evaluate()
 
     def simulate(self, parameters, times):
         input_parameters = {
