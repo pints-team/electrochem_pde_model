@@ -43,7 +43,7 @@ def inference(model, values, times):
 if __name__ == '__main__':
     model = SingleReactionSolution()
     data = ECTimeData('GC02_FeIII-1mM_1M-KCl_02a_009Hz.txt', model,
-            ignore_begin_samples=5, ignore_end_samples=0, samples_per_period=200)
+            ignore_begin_samples=5, ignore_end_samples=0, samples_per_period=5000)
     inference(model, data.current, data.times)
 
 
