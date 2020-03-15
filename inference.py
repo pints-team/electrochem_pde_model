@@ -2,6 +2,7 @@ from model import SingleReactionSolution
 import numpy as np
 import pints
 from data import ECTimeData
+import pickle
 
 def inference(model, values, times):
 
@@ -43,7 +44,7 @@ def inference(model, values, times):
 if __name__ == '__main__':
     model = SingleReactionSolution()
     data = ECTimeData('GC02_FeIII-1mM_1M-KCl_02a_009Hz.txt', model,
-            ignore_begin_samples=5, ignore_end_samples=0, samples_per_period=5000)
+            ignore_begin_samples=5, ignore_end_samples=0, samples_per_period=200)
     inference(model, data.current, data.times)
 
 

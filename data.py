@@ -55,15 +55,10 @@ class ECTimeData:
         print('\tBefore downsampling, have ', len(self.times), ' data points')
         print('\tDatafile has ', data_samples_per_period, ' samples per period.')
         print(
-            '\tReducing number of samples using a moving average window of size ', downsample)
+            '\tReducing number of samples by keeping every', downsample, 'point')
 
-        new_length = int(len(self.times) / downsample)
-        pad_size = int(
-            ceil(float(len(self.times)) / downsample) * downsample) - len(self.times)
-        self.times = np.append(self.times, np.zeros(pad_size) * np.NaN)
-        self.times = np.nanmean(self.times.reshape(-1, downsample), axis=1)
-        self.current = np.append(self.current, np.zeros(pad_size) * np.NaN)
-        self.current = np.nanmean(self.current.reshape(-1, downsample), axis=1)
+        self.times = self.times[::downsample]
+        self.current= self.current[::downsample]
 
         self.current = self.current / model._I_0
         self.times = self.times / model._T_0

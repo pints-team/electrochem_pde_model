@@ -168,7 +168,10 @@ class SingleReactionSolution(pints.ForwardModel):
             "Capacitance [F]": parameters[4],
         }
 
-        solution = self._solver.solve(self._model, times, inputs=input_parameters)
+        try:
+            solution = self._solver.solve(self._model, times, inputs=input_parameters)
+        except pybamm.SolverError:
+            solution = np.zeros_like(times)
         return solution["Current [non-dim]"](times)
 
     def n_parameters(self):
