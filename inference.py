@@ -25,7 +25,7 @@ def inference(model, values, times):
     # params =                   ['k0', 'E0', 'a', 'Ru', 'Cdl', 'freq', 'sigma']
     start_parameters = np.array([0.0101, 0.214, 0.53, 8.0, 20.0e-6, 9.0152, 0.01])
 
-    transform = pints.ComposedElementWiseTransformation(
+    transform = pints.ComposedTransformation(
         pints.LogTransformation(1),
         pints.RectangularBoundariesTransformation(
             lower_bounds[1:], upper_bounds[1:]
