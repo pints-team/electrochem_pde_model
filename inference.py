@@ -38,7 +38,7 @@ def inference(model, values, times):
                 start_parameters,
                 sigma0,
                 boundaries,
-                transform=transform,
+                transformation=transform,
                 method=pints.CMAES
             )
     xs = [
@@ -58,7 +58,7 @@ def inference(model, values, times):
 
     # Create mcmc routine with four chains
     mcmc = pints.MCMCController(log_posterior, 3, xs, method=pints.HaarioBardenetACMC,
-                                transform=transform)
+                                transformation=transform)
 
     # Add stopping criterion
     mcmc.set_max_iterations(100)
