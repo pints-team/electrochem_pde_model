@@ -61,7 +61,7 @@ def inference(model, values, times):
                                 transform=transform)
 
     # Add stopping criterion
-    mcmc.set_max_iterations(10000)
+    mcmc.set_max_iterations(100)
 
     # Run!
     chains = mcmc.run()

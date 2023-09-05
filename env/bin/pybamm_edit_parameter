@@ -1,0 +1,8 @@
+#!/Users/bcl206/Documents/GitHub/electrochem_pde_model/env/bin/python3
+# -*- coding: utf-8 -*-
+import re
+import sys
+from pybamm.parameters_cli import edit_parameter
+if __name__ == '__main__':
+    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
+    sys.exit(edit_parameter())

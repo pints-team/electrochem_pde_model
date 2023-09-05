@@ -1,0 +1,35 @@
+from dataclasses import dataclass, field
+from typing import Type
+
+import numpy as np
+from numpy import ndarray
+
+from ..element import Element, ElementQuad2
+from .mesh_quad_1 import MeshQuad1
+from .mesh_2d_2 import Mesh2D2
+
+
+@dataclass(repr=False)
+class MeshQuad2(Mesh2D2, MeshQuad1):
+    """A quadratic quadrilateral mesh."""
+
+    doflocs: ndarray = field(
+        default_factory=lambda: np.array(
+            [
+                [0.0, 0.0],
+                [1.0, 0.0],
+                [1.0, 1.0],
+                [0.0, 1.0],
+                [0.5, 0.0],
+                [0.0, 0.5],
+                [1.0, 0.5],
+                [0.5, 1.0],
+                [0.5, 0.5],
+            ],
+            dtype=np.float64,
+        ).T
+    )
+    elem: Type[Element] = ElementQuad2
+
+    def _uniform(self):
+        return MeshQuad2.from_mesh(MeshQuad1.from_mesh(self).refined())
