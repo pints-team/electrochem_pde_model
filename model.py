@@ -74,8 +74,8 @@ class SingleReactionSolution(pints.ForwardModel):
         Edc_forward = -pybamm.t
         Edc_backwards = pybamm.t - 2*t_reverse
         Eapp = E_start + \
-            (pybamm.t <= t_reverse) * Edc_forward + \
-            (pybamm.t > t_reverse) * Edc_backwards + \
+            pybamm.sigmoid(pybamm.t, t_reverse, 10) * Edc_forward + \
+            pybamm.sigmoid(t_reverse, pybamm.t, 10) * Edc_backwards + \
             deltaE * pybamm.sin(omega * pybamm.t)
 
         # create PyBaMM model object
@@ -143,7 +143,7 @@ class SingleReactionSolution(pints.ForwardModel):
 
         # model variables
         model.variables = {
-            "Current [non-dim]": i,
+            "Current": i,
         }
 
         #--------------------------------
@@ -219,7 +219,7 @@ class SingleReactionSolution(pints.ForwardModel):
 
         try:
             solution = self._solver.solve(self._model, times, inputs=input_parameters)
-            return solution.y[index:index+1, :].reshape(-1)
+            return np.array(solution.y[index:index+1, :]).reshape(-1)
         except pybamm.SolverError:
             print('solver errored for params',parameters)
             return np.zeros_like(times)
@@ -250,4 +250,4 @@ if __name__ == '__main__':
     plt.plot(t_eval, y2)
     plt.ylabel("current [non-dim]")
     plt.xlabel("time [non-dim]")
-    plt.show()
+    plt.savefig("test.png")
