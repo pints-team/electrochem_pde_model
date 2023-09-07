@@ -28,7 +28,7 @@ def model_posterior_simulation(error_model_type, n_remove):
     
     chains = fetch_model_results(error_model_type)
     chains_stacked = np.vstack(chains)
-    posterior_means = chains_stacked.mean(axis=0)
+    posterior_means = np.median(chains_stacked, axis=0)
     posterior_means = posterior_means[:(len(posterior_means) - n_remove)]
     
     model = SingleReactionSolution()
@@ -50,7 +50,11 @@ def export_data():
 if __name__ == '__main__':
     
     error_models = ['independent', 'ar1', 'arma11', 'student_t']
+    n_noise_parameters = [1, 2, 3, 2]
+    k = 0
     for em in error_models:
-        model_posterior_simulation(em)
+        print(k)
+        model_posterior_simulation(em, n_noise_parameters[k])
         export_mcmc(em)
+        k += 1
     export_data()

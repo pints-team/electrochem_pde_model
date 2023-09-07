@@ -95,14 +95,85 @@ df_summary %>%
 
 ```{r}
 get_model_simulations <- function(error_model) {
-  if(is_autocorrelated)
-    filename <- "mcmc_results_autocorrelated.csv"
-  else
-    filename <- "mcmc_results_independent.csv"
+  filename <- paste0("mcmc_results_", error_model, ".csv")
   vals <- read.csv(filename, header = FALSE)$V1
   vals
 }
+
+vals_arma11 <- get_model_simulations("arma11")
+vals_ar1 <- get_model_simulations("ar1")
+vals_i <- get_model_simulations("independent")
+vals_s <- get_model_simulations("student_t")
+
+df <- read.csv("data.csv", header = FALSE)
+colnames(df) <- c("time", "current")
+
+df <- df %>% 
+  mutate(
+    independent=vals_i,
+    "AR(1)"=vals_ar1,
+    "ARMA(1,1)"=vals_arma11,
+    "Student-t"=vals_s
+  )
+
+df %>% 
+  filter(time < 20) %>% 
+  pivot_longer(-c(time, current)) %>% 
+  mutate(name=as.factor(name)) %>% 
+  mutate(name=fct_relevel(name, "independent", "AR(1)", "ARMA(1,1)", "Student-t")) %>% 
+  ggplot(aes(x=time, y=value)) +
+  geom_line(aes(y=current)) +
+  geom_line(colour="blue") +
+  theme_classic() +
+  facet_wrap(~name)
 ```
 
 
+```{r}
+get_posteriors <- function(error_model, params) {
+  filename <- paste0("mcmc_draws_", error_model, ".csv")
+  df <- read.csv(filename, header = FALSE)
+  colnames(df) <- params
+  df %>% 
+    mutate(type=error_model)
+}
+
+params <- c('k0', 'E0', 'a', 'Ru', 'Cdl', 'freq', 'sigma')
+df_i <- get_posteriors("independent", params)
+params <- c('k0', 'E0', 'a', 'Ru', 'Cdl', 'freq', 'rho', 'sigma')
+df_ar1 <- get_posteriors("ar1", params)
+params <- c('k0', 'E0', 'a', 'Ru', 'Cdl', 'freq', 'rho', 'phi', 'sigma')
+df_arma11 <- get_posteriors("arma11", params)
+params <- c('k0', 'E0', 'a', 'Ru', 'Cdl', 'freq', 'nu', 'sigma')
+df_s <- get_posteriors("student_t", params)
+
+df_all <- df_i %>% 
+  bind_rows(
+    df_ar1,
+    df_arma11,
+    df_s
+  ) %>% 
+  select(-c(rho, nu, phi)) %>% 
+  group_by(type) %>% 
+  mutate(iteration=seq_along(type)) %>% 
+  ungroup() %>% 
+  pivot_longer(-c(iteration, type))
+
+df_summary <- df_all %>% 
+  group_by(type, name) %>% 
+  summarise(
+    middle=quantile(value, 0.5)
+  ) %>% 
+  pivot_wider(id_cols = name,
+              values_from = c(middle),
+              names_from = type)
+```
+
+```{r}
+df_all %>% 
+  filter(name=="freq") %>% 
+  filter(iteration < 20000) %>% 
+  ggplot(aes(x=iteration, y=value, group=type, colour=type)) +
+  geom_line()
+```
 
