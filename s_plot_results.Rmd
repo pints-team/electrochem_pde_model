@@ -1,0 +1,108 @@
+---
+title: "Plot electrochemistry"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+get_model_simulations <- function(is_autocorrelated) {
+  if(is_autocorrelated)
+    filename <- "mcmc_results_autocorrelated.csv"
+  else
+    filename <- "mcmc_results_independent.csv"
+  vals <- read.csv(filename, header = FALSE)$V1
+  vals
+}
+
+df <- read.csv("data.csv", header = FALSE)
+colnames(df) <- c("time", "current")
+
+vals_a <- get_model_simulations(TRUE)
+vals_i <- get_model_simulations(FALSE)
+df <- df %>% 
+  mutate(
+    autocorrelated=vals_a,
+    independent=vals_i
+  )
+
+df %>% 
+  filter(time < 20) %>% 
+  pivot_longer(-c(time, current)) %>% 
+  mutate(name=as.factor(name)) %>% 
+  mutate(name=fct_relevel(name, "independent", "autocorrelated")) %>% 
+  ggplot(aes(x=time, y=value)) +
+  geom_line(aes(y=current)) +
+  geom_line(colour="blue") +
+  theme_classic() +
+  facet_wrap(~name)
+```
+
+Examine posteriors
+```{r}
+get_posteriors <- function(is_autocorrelated) {
+  if(is_autocorrelated) {
+    filename <- "mcmc_draws_autocorrelated.csv"
+    type="autocorrelated"
+    params <- c('k0', 'E0', 'a', 'Ru', 'Cdl', 'freq', 'rho', 'sigma')
+  } else {
+    filename <- "mcmc_draws_independent.csv"
+    params <- c('k0', 'E0', 'a', 'Ru', 'Cdl', 'freq', 'sigma')
+    type="independent"
+  }
+  df <- read.csv(filename, header = FALSE)
+  colnames(df) <- params
+  df %>% 
+    mutate(type=type)
+}
+
+df_a <- get_posteriors(TRUE)
+df_i <- get_posteriors(FALSE)
+df_both <- df_i %>% 
+  bind_rows(df_a) %>% 
+  select(-rho) %>% 
+  mutate(iteration=seq_along(type)) %>% 
+  pivot_longer(-c(iteration, type))
+df_summary <- df_both %>% 
+  group_by(type, name) %>% 
+  summarise(
+    lower=quantile(value, 0.025),
+    upper=quantile(value, 0.975),
+    middle=quantile(value, 0.5)
+  ) %>% 
+  pivot_wider(id_cols = name,
+              values_from = c(lower, upper, middle),
+              names_from = type)
+
+df_summary %>% 
+  ggplot(aes(x=middle_independent, y=middle_autocorrelated,
+             colour=name)) +
+  geom_abline() +
+  geom_pointrange(aes(ymin=lower_autocorrelated,
+                      ymax=upper_autocorrelated)) +
+  geom_errorbarh(aes(xmin=lower_independent,
+                     xmax=upper_independent),
+                 height=0) +
+  scale_x_log10() +
+  scale_y_log10() +
+  scale_color_brewer("Parameter", palette = "Dark2") +
+  xlab("Independent estimate") +
+  ylab("Autocorrelated estimate")
+```
+# Results from a bigger variety of models
+
+```{r}
+get_model_simulations <- function(error_model) {
+  if(is_autocorrelated)
+    filename <- "mcmc_results_autocorrelated.csv"
+  else
+    filename <- "mcmc_results_independent.csv"
+  vals <- read.csv(filename, header = FALSE)$V1
+  vals
+}
+```
+
+
+
