@@ -116,7 +116,7 @@ df <- df %>%
     "Student-t"=vals_s
   )
 
-df %>% 
+g1 <- df %>% 
   filter(time < 20) %>% 
   pivot_longer(-c(time, current)) %>% 
   mutate(name=as.factor(name)) %>% 
@@ -126,6 +126,7 @@ df %>%
   geom_line(colour="blue") +
   theme_classic() +
   facet_wrap(~name)
+g1
 ```
 
 
@@ -153,7 +154,6 @@ df_all <- df_i %>%
     df_arma11,
     df_s
   ) %>% 
-  select(-c(rho, nu, phi)) %>% 
   group_by(type) %>% 
   mutate(iteration=seq_along(type)) %>% 
   ungroup() %>% 
@@ -162,18 +162,44 @@ df_all <- df_i %>%
 df_summary <- df_all %>% 
   group_by(type, name) %>% 
   summarise(
-    middle=quantile(value, 0.5)
-  ) %>% 
+    lower=quantile(value, 0.01, na.rm=TRUE),
+    middle=quantile(value, 0.5, na.rm=TRUE),
+    upper=quantile(value, 0.999, na.rm=TRUE)
+  )
+
+df_ind_only <- df_summary %>% 
+  filter(type=="independent") %>% 
   pivot_wider(id_cols = name,
-              values_from = c(middle),
+              values_from = c(lower, middle, upper),
               names_from = type)
+df_wo_ind <- df_summary %>% 
+  filter(type!="independent")
+df_combined <- df_wo_ind %>% 
+  left_join(df_ind_only)
+
+g2 <- df_combined %>% 
+  filter(!name %in% c("nu", "phi", "rho")) %>% 
+  mutate(type=case_when(
+    type=="ar1"~"AR(1)",
+    type=="arma11"~"ARMA(1, 1)",
+    type=="student_t"~"Student-t"
+  )) %>% 
+  ggplot(aes(x=middle_independent, y=middle,
+             colour=name)) +
+  geom_abline() +
+  geom_pointrange(aes(ymin=lower,
+                      ymax=upper), size=0.1) +
+  geom_errorbarh(aes(xmin=lower_independent,
+                     xmax=upper_independent),
+                 height=0) +
+  scale_x_log10() +
+  scale_y_log10() +
+  scale_color_brewer("Parameter", palette = "Dark2") +
+  xlab("Independent estimate") +
+  ylab("Autocorrelated estimate") +
+  facet_grid(cols=vars(type))
+g2
 ```
 
-```{r}
-df_all %>% 
-  filter(name=="freq") %>% 
-  filter(iteration < 20000) %>% 
-  ggplot(aes(x=iteration, y=value, group=type, colour=type)) +
-  geom_line()
-```
+
 

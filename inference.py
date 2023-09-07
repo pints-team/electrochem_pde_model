@@ -4,6 +4,20 @@ import pints
 from data import ECTimeData
 import pickle
 
+base_model_lower_bounds = [1e-3, 0.0, 0.4, 0.1, 1e-6, 8.0]
+base_model_upper_bounds = [10.0, 0.4, 0.6, 100.0, 100e-6, 10.0]
+sigma_lower_bound = 1e-4
+sigma_upper_bound = 10
+independent_lower_bounds = np.array(base_model_lower_bounds + [sigma_lower_bound])
+independent_upper_bounds = np.array(base_model_upper_bounds + [sigma_upper_bound])
+ar1_lower_bounds = np.array(base_model_lower_bounds + [-1.0, sigma_lower_bound])
+ar1_upper_bounds = np.array(base_model_upper_bounds + [1.0, sigma_upper_bound])
+student_t_lower_bounds = np.array(base_model_lower_bounds + [0.0, sigma_lower_bound])
+student_t_upper_bounds = np.array(base_model_upper_bounds + [1000.0, sigma_upper_bound])
+arma11_lower_bounds = np.array(base_model_lower_bounds + [-1.0, -1.0, sigma_lower_bound])
+arma11_upper_bounds = np.array(base_model_upper_bounds + [1.0, 1.0, sigma_upper_bound])
+
+
 def create_optimisation_filename(error_model_type):
     file_extra = error_model_type
     filename = 'optimisation_results_' + file_extra + ".pickle"
@@ -13,44 +27,45 @@ def create_mcmc_filename(error_model_type):
     file_extra = error_model_type
     filename = 'mcmc_results_' + file_extra + ".pickle"
     return filename
+    
 
 def optimise(model, values, times, error_model_type):
     # Create an object with links to the model and time series
     problem = pints.SingleOutputProblem(model, times, values)
+    base_model_start_parameters = [0.012, 0.214, 0.53, 0.44, 1.8e-5, 9.0152] #  close to what is obtained by CMAES in independent / autocorrelated / student-t models
+    sigma_start = 0.04
 
     if error_model_type=="independent":
         print("Fitting independent errors model...")
         log_likelihood = pints.GaussianLogLikelihood(problem)
-        lower_bounds = np.array([1e-3, 0.0, 0.4, 0.1,   1e-6, 8.0, 1e-4])
-        upper_bounds = np.array([10.0, 0.4, 0.6, 100.0, 100e-6, 10.0, 10])
+        lower_bounds = independent_lower_bounds
+        upper_bounds = independent_upper_bounds
         log_prior = pints.UniformLogPrior(lower_bounds, upper_bounds)
-        start_parameters = np.array([0.0101, 0.214, 0.53, 8.0, 20.0e-6, 9.0152, 0.01])
+        # params =                   ['k0', 'E0', 'a', 'Ru', 'Cdl', 'freq', 'sigma']
+        start_parameters = np.array(base_model_start_parameters + [sigma_start])
     elif error_model_type=="ar1":
         print("Fitting AR1 model...")
         log_likelihood = pints.AR1LogLikelihood(problem)
-        lower_bounds = np.array([1e-3, 0.0, 0.4, 0.1,   1e-6, 8.0, -1.0, 1e-4])
-        upper_bounds = np.array([10.0, 0.4, 0.6, 100.0, 100e-6, 10.0, 1.0, 10])
+        lower_bounds = ar1_lower_bounds
+        upper_bounds = ar1_upper_bounds
         log_prior = pints.UniformLogPrior(lower_bounds, upper_bounds)
         # params =                   ['k0', 'E0', 'a', 'Ru', 'Cdl', 'freq', 'rho', 'sigma']
-        start_parameters = np.array([0.0101, 0.214, 0.53, 8.0, 20.0e-6, 9.0152, 0.01, 0.5])
+        start_parameters = np.array(base_model_start_parameters + [0.01, sigma_start])
     elif error_model_type=="student_t":
         print("Fitting Student-t model...")
         log_likelihood = pints.StudentTLogLikelihood(problem)
-        lower_bounds = np.array([1e-3, 0.0, 0.4, 0.1,   1e-6, 8.0, 0.0, 1e-4])
-        upper_bounds = np.array([10.0, 0.4, 0.6, 100.0, 100e-6, 10.0, 1000.0, 10])
+        lower_bounds = student_t_lower_bounds
+        upper_bounds = student_t_upper_bounds
         log_prior = pints.UniformLogPrior(lower_bounds, upper_bounds)
         # params =                   ['k0', 'E0', 'a', 'Ru', 'Cdl', 'freq', 'nu', 'sigma']
-        start_parameters = np.array([0.0101, 0.214, 0.53, 8.0, 20.0e-6, 9.0152, 10, 0.5])
+        start_parameters = np.array(base_model_start_parameters + [400, sigma_start])
     elif error_model_type=="arma11":
         log_likelihood = pints.ARMA11LogLikelihood(problem)
-        lower_bounds = np.array([1e-3, 0.0, 0.4, 0.1,   1e-6, 8.0, -1.0, -1.0, 1e-4])
-        upper_bounds = np.array([10.0, 0.4, 0.6, 100.0, 100e-6, 10.0, 1.0, 1.0, 10])
+        lower_bounds = arma11_lower_bounds
+        upper_bounds = arma11_upper_bounds
         log_prior = pints.UniformLogPrior(lower_bounds, upper_bounds)
         # params =                   ['k0', 'E0', 'a', 'Ru', 'Cdl', 'freq', 'rho', 'phi, 'sigma']
-        start_parameters = np.array([0.0101, 0.214, 0.53, 8.0, 20.0e-6, 9.0152, 0.01, 0.01, 0.5])
-        
-    
-
+        start_parameters = np.array(base_model_start_parameters + [0.01, 0.01, sigma_start])
     
     # Create a posterior log-likelihood (log(likelihood * prior))
     log_posterior = pints.LogPosterior(log_likelihood, log_prior)
@@ -69,7 +84,7 @@ def optimise(model, values, times, error_model_type):
                 sigma0,
                 boundaries,
                 transformation=transform,
-                method=pints.CMAES
+                method=pints.NelderMead
             )
     
     filename = create_optimisation_filename(error_model_type)
@@ -83,25 +98,25 @@ def inference(model, values, times, error_model_type):
     if error_model_type=="independent":
         print("Fitting independent errors model...")
         log_likelihood = pints.GaussianLogLikelihood(problem)
-        lower_bounds = np.array([1e-3, 0.0, 0.4, 0.1,   1e-6, 8.0, 1e-4])
-        upper_bounds = np.array([10.0, 0.4, 0.6, 100.0, 100e-6, 10.0, 10])
+        lower_bounds = independent_lower_bounds
+        upper_bounds = independent_upper_bounds
         log_prior = pints.UniformLogPrior(lower_bounds, upper_bounds)
     elif error_model_type=="ar1":
         print("Fitting AR1 model...")
         log_likelihood = pints.AR1LogLikelihood(problem)
-        lower_bounds = np.array([1e-3, 0.0, 0.4, 0.1,   1e-6, 8.0, -1.0, 1e-4])
-        upper_bounds = np.array([10.0, 0.4, 0.6, 100.0, 100e-6, 10.0, 1.0, 10])
+        lower_bounds = ar1_lower_bounds
+        upper_bounds = ar1_upper_bounds
         log_prior = pints.UniformLogPrior(lower_bounds, upper_bounds)
     elif error_model_type=="student_t":
         print("Fitting Student-t model...")
         log_likelihood = pints.StudentTLogLikelihood(problem)
-        lower_bounds = np.array([1e-3, 0.0, 0.4, 0.1,   1e-6, 8.0, 0.0, 1e-4])
-        upper_bounds = np.array([10.0, 0.4, 0.6, 100.0, 100e-6, 10.0, 1000.0, 10])
+        lower_bounds = student_t_lower_bounds
+        upper_bounds = student_t_upper_bounds
         log_prior = pints.UniformLogPrior(lower_bounds, upper_bounds)
     elif error_model_type=="arma11":
         log_likelihood = pints.ARMA11LogLikelihood(problem)
-        lower_bounds = np.array([1e-3, 0.0, 0.4, 0.1,   1e-6, 8.0, -1.0, -1.0, 1e-4])
-        upper_bounds = np.array([10.0, 0.4, 0.6, 100.0, 100e-6, 10.0, 1.0, 1.0, 10])
+        lower_bounds = arma11_lower_bounds
+        upper_bounds = arma11_upper_bounds
         log_prior = pints.UniformLogPrior(lower_bounds, upper_bounds)
 
     # Create a posterior log-likelihood (log(likelihood * prior))
@@ -137,7 +152,7 @@ def inference(model, values, times, error_model_type):
                                 transformation=transform)
 
     # Add stopping criterion
-    mcmc.set_max_iterations(10000)
+    mcmc.set_max_iterations(1000)
 
     # Run!
     chains = mcmc.run()
@@ -153,7 +168,7 @@ if __name__ == '__main__':
     data = ECTimeData('GC01_FeIII-1mM_1M-KCl_02_009Hz.txt', model,
                       ignore_begin_samples=5, ignore_end_samples=0, samples_per_period=200)
     
-    error_models = ['independent', 'ar1', 'arma11', 'student_t']
+    error_models = ['arma11', 'student_t']
     for em in error_models:
         optimise(model, data.current, data.times, em)
         inference(model, data.current, data.times, em)
