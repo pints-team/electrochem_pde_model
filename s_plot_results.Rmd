@@ -117,7 +117,7 @@ df <- df %>%
   )
 
 g1 <- df %>% 
-  filter(time < 20) %>% 
+  filter(time < 25) %>% 
   pivot_longer(-c(time, current)) %>% 
   mutate(name=as.factor(name)) %>% 
   mutate(name=fct_relevel(name, "independent", "AR(1)", "ARMA(1,1)", "Student-t")) %>% 
@@ -125,7 +125,9 @@ g1 <- df %>%
   geom_line(aes(y=current)) +
   geom_line(colour="blue") +
   theme_classic() +
-  facet_wrap(~name)
+  facet_wrap(~name) +
+  xlab("Time") +
+  ylab("Current")
 g1
 ```
 
@@ -164,7 +166,7 @@ df_summary <- df_all %>%
   summarise(
     lower=quantile(value, 0.01, na.rm=TRUE),
     middle=quantile(value, 0.5, na.rm=TRUE),
-    upper=quantile(value, 0.999, na.rm=TRUE)
+    upper=quantile(value, 0.99, na.rm=TRUE)
   )
 
 df_ind_only <- df_summary %>% 
@@ -195,11 +197,27 @@ g2 <- df_combined %>%
   scale_x_log10() +
   scale_y_log10() +
   scale_color_brewer("Parameter", palette = "Dark2") +
-  xlab("Independent estimate") +
-  ylab("Autocorrelated estimate") +
+  xlab("Independent error estimate") +
+  ylab("Alternative error model estimate") +
   facet_grid(cols=vars(type))
 g2
 ```
 
 
+```{r}
+library(cowplot)
+gfinal <- plot_grid(g1, g2, nrow = 2, labels = c("A.", "B."))
+ggsave("error_model_comparison.pdf", gfinal, width = 10, height = 6)
+```
+
+Residuals! Hmm. Not sure what to plot since all models will have autocorrelated residuals...
+```{r}
+df_acf <- df %>% 
+  pivot_longer(-c(time, current)) %>% 
+  mutate(res=current-value) %>% 
+  group_by(name) %>% 
+  summarise(
+    ac=acf(res)$acf
+  )
+```
 
